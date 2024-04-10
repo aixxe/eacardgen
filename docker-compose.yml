@@ -1,0 +1,10 @@
+services:
+  eacardgen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    volumes:
+      - ./html/index.html:/app/html/index.html
+    stop_grace_period: 1s

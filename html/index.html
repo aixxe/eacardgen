@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="utf-8">
+		<title>e-amusement card generator</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+			integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+			integrity="sha384-4LISF5TTJX/fLmGSxO53rV4miRxdg84mZsxmO8Rx5jGtp/LbrixFETvWa5a6sESd" crossorigin="anonymous">
+	</head>
+	<body>
+		<div id="root" class="d-flex flex-column min-vh-100 min-vw-100">
+			<main class="container d-flex flex-grow-1 justify-content-center align-items-center">
+				<form class="w-100">
+					<label for="str01" class="col-form-label">Target substring</label>
+                    <div id="substringContainer" class="input-group input-group-lg mb-1">
+                        <input id="str01" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-" autofocus>
+                        <input id="str02" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str03" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str04" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str05" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="-">
+                        <input id="str06" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="-">
+                        <input id="str07" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="-">
+                        <input id="str08" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="-">
+                        <input id="str09" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str10" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str11" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str12" type="text" class="form-control text-center font-monospace bg-dark-subtle" maxlength="1" placeholder="-">
+                        <input id="str13" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="-">
+                        <input id="str14" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="X" disabled>
+                        <input id="str15" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="X" disabled>
+                        <input id="str16" type="text" class="form-control text-center font-monospace" maxlength="1" placeholder="X" disabled>
+                    </div>
+
+					<small class="form-text text-muted">
+						Invalid characters: <code class="ps-1">I O Q V</code>
+					</small>
+
+					<div class="d-grid gap-2 py-3">
+						<button id="findCard" class="btn btn-primary btn-lg py-3" type="submit" disabled>
+							<i class="bi bi-search"></i> Search
+						</button>
+
+						<div id="progressContainer" class="progress d-none" role="progressbar" style="height: 25px;">
+							<div id="progressBar" class="progress-bar text-end px-3" style="width: 1%;">
+								<span>
+									<strong id="progressIterations"></strong>
+									<span id="progressTotal"></span>
+									<small id="progressTime" class="text-muted"></small>
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<div id="foundCards" class="pt-2 d-none">
+						<div style="overflow: auto; max-height: 360px;">
+							<table class="table table-striped table-hover">
+								<thead>
+									<tr>
+										<th scope="col" class="text-end pe-4">NFC ID</th>
+										<th scope="col" class="ps-4">Display ID</th>
+									</tr>
+								</thead>
+								<tbody id="cardRows" class="font-monospace"></tbody>
+							</table>
+						</div>
+						<div class="text-muted text-center mt-3">
+							<small id="resultCount"></small>
+						</div>
+					</div>
+				</form>
+			</main>
+			<footer class="footer mt-auto pb-4 text-muted text-center">
+				<div class="container">
+					<small>
+						by <a target="_blank" class="text-decoration-none fw-bold" href="https://aixxe.net/">aixxe</a> &mdash;
+						<a target="_blank" class="text-decoration-none" href="https://github.com/aixxe/eacardgen">
+							<i class="bi bi-github"></i> GitHub
+						</a>
+					</small>
+				</div>
+			</footer>
+		</div>
+		<script>
+			const Module = {
+				currentTask: null,
+				onRuntimeInitialized: () => { document.getElementById('findCard').disabled = false; }
+			};
+
+			// Helper function to split up big numbers with commas
+			const formatNumber = (number) => number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+			// Resize the substring input group based on screen width
+			const resizeHandler = () => {
+				let classes = document.getElementById('substringContainer').classList;
+				let breakpoint = parseInt(getComputedStyle(document.documentElement)
+					.getPropertyValue('--bs-breakpoint-md'));
+
+				if (window.innerWidth < breakpoint)
+				{
+					classes.remove('input-group-lg');
+					classes.add('input-group-sm');
+				}
+				else
+				{
+					classes.remove('input-group-sm');
+					classes.add('input-group-lg');
+				}
+			};
+
+			window.addEventListener('load', resizeHandler);
+			window.addEventListener('resize', resizeHandler);
+
+            const elements = [];
+			const alphabet = '0123456789ABCDEFGHJKLMNPRSTUWXYZ'.split('');
+
+            for (let i = 0; i < 13; i++)
+                elements.push(document.getElementById('str' + (i + 1).toString().padStart(2, '0')));
+
+			selectInput = (e, index, offset) =>
+			{
+				e.preventDefault();
+
+				if (elements[index + offset])
+					elements[index + offset].focus();
+			};
+
+            elements.forEach((element, index) =>
+            {
+				// TODO: Doesn't really work well on mobile...
+                element.addEventListener('keydown', (e) =>
+                {
+					// On backspace, clear and focus previous field
+					if (e.key === 'ArrowLeft')
+					{
+						e.preventDefault();
+						return selectInput(e, index, -1);
+					}
+
+					if (e.key === 'Backspace')
+					{
+						e.preventDefault();
+						e.target.value = '';
+						return selectInput(e, index, -1);
+					}
+
+					if (e.key === 'ArrowRight' || e.key === ' ')
+					{
+						e.preventDefault();
+						return selectInput(e, index, 1);
+					}
+
+					if (e.key === 'Tab' || e.ctrlKey)
+						return;
+
+					// Select search button upon pressing Enter
+					if (e.key === 'Enter')
+						document.getElementById('findCard').focus();
+
+					// Prevent invalid characters from being entered
+					if (!alphabet.includes(e.key.toUpperCase()))
+						return e.preventDefault();
+
+					// Convert input to uppercase and move to next field
+					e.target.value = e.key.toUpperCase();
+
+					if (index + 1 < elements.length)
+						selectInput(e, index, 1);
+					else
+						document.getElementById('findCard').focus();
+				});
+            });
+
+			document.getElementById('findCard').addEventListener('click', (e) =>
+			{
+				let substring = elements.map((element) => element.value || '?').join('') + 'xxx';
+
+				let btn = e.target;
+				let btnText = btn.innerHTML;
+				let startTime = null;
+
+				let progressBar = document.getElementById('progressBar');
+				let progressContainer = document.getElementById('progressContainer');
+				let progressIterations = document.getElementById('progressIterations');
+				let progressTotal = document.getElementById('progressTotal');
+				let progressTime = document.getElementById('progressTime');
+				let foundCards = document.getElementById('foundCards');
+				let cardRows = document.getElementById('cardRows');
+				let resultCount = document.getElementById('resultCount');
+
+				e.preventDefault();
+
+				if (Module.currentTask !== null)
+					return Module.currentTask.stop();
+
+				Module.currentTask = new Module.CardSearchTask(substring);
+
+				Module.currentTask.on('status', (type) =>
+				{
+					if (type === 'active')
+					{
+						startTime = performance.now();
+
+						btn.classList.remove('btn-primary');
+						btn.classList.add('btn-danger');
+						btn.innerHTML = '<i class="bi bi-x-circle"></i> Cancel';
+
+						progressContainer.classList.remove('d-none');
+						progressBar.classList.remove('bg-dark');
+						progressTime.classList.add('d-none');
+						resultCount.textContent = '';
+
+						while (cardRows.firstChild)
+							cardRows.removeChild(cardRows.firstChild);
+					}
+
+					if (type === 'complete')
+					{
+						let timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+
+						btn.classList.remove('btn-danger');
+						btn.classList.add('btn-primary');
+						btn.innerHTML = btnText;
+
+						progressBar.classList.add('bg-dark');
+						progressTime.classList.remove('d-none');
+						progressTime.innerHTML = `&mdash; finished in ${timeTaken} sec`;
+
+						Module.currentTask = null;
+					}
+				});
+
+				Module.currentTask.on('match', (nfcId, cardId) =>
+				{
+					// Show the results table if it's currently hidden
+					if (foundCards.classList.contains('d-none'))
+						foundCards.classList.remove('d-none');
+
+					// Split every 4 characters for better readability
+					nfcId = nfcId.match(/.{1,4}/g);
+					nfcId[0] = `<strong>${nfcId[0]}</strong>`;
+					nfcId = nfcId.join(' ');
+					cardId = cardId.match(/.{1,4}/g).join(' ');
+
+					let row = document.createElement('tr');
+
+					row.innerHTML =
+						`<td class="text-end pe-4 text-body-secondary">${nfcId}</td>
+						 <td class="ps-4">${cardId}</td>`;
+
+					cardRows.appendChild(row);
+
+					// Update the result count
+					const count = cardRows.children.length;
+					resultCount.textContent = `${count} result` +(count === 1 ? '' : 's');
+				});
+
+				Module.currentTask.on('progress', (iterations, total) =>
+				{
+					progressBar.style.width = `${(iterations / total) * 100}%`;
+					progressIterations.textContent = formatNumber(iterations);
+					progressTotal.textContent = `of ${formatNumber(total)}`;
+				});
+
+				Module.currentTask.start();
+			});
+		</script>
+		<script src="dist/eacardgen.js"></script>
+	</body>
+</html>
